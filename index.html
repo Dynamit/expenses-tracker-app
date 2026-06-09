@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#2b2620">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>הוצאות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=Frank+Ruhl+Libre:wght@700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIteU15XXpteQ15XXqiIsCiAgInNob3J0X25hbWUiOiAi15TXldem15DXldeqIiwKICAic3RhcnRfdXJsIjogIi4vIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjRlZmU2IiwKICAidGhlbWVfY29sb3IiOiAiIzJiMjYyMCIsCiAgImljb25zIjogW10KfQ==">
+<style>
+:root{--bg:#f4efe6;--paper:#fbf8f1;--ink:#2b2620;--ink-soft:#8a8174;--accent:#c4623a;--line:#e6ddcd;--green:#3f7a5b;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Heebo',sans-serif;}
+body{max-width:480px;margin:0 auto;min-height:100vh;padding:env(safe-area-inset-top) 0 0;}
+#app{padding:16px 16px 100px;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+::-webkit-scrollbar{width:0}
+
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin:6px 0 16px}
+.brand{font-family:'Frank Ruhl Libre',serif;font-size:32px;font-weight:900;line-height:1}
+.brand span{color:var(--accent)}
+.sub{font-size:11px;color:var(--ink-soft);margin-top:3px}
+.hbtns{display:flex;gap:8px;align-items:center}
+.month-sel,.export-btn{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:8px 11px;font-size:13px;color:var(--ink)}
+.menu-backdrop{position:fixed;inset:0;z-index:60}
+.menu{position:absolute;top:42px;left:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 10px 30px rgba(43,38,32,.18);z-index:61;min-width:210px}
+.menu-item{display:block;width:100%;text-align:right;padding:11px 12px;border-radius:9px;font-size:14px;color:var(--ink)}
+.menu-item:active{background:var(--bg)}
+.menu-div{height:1px;background:var(--line);margin:4px 8px}
+
+.total-card{background:linear-gradient(135deg,#2b2620,#3d362c);color:#fbf8f1;border-radius:18px;padding:16px 18px;margin-bottom:14px;box-shadow:0 10px 26px rgba(43,38,32,.2);display:flex;justify-content:space-between;align-items:center}
+.total-label{font-size:12px;opacity:.7}
+.total-num{font-family:'Frank Ruhl Libre',serif;font-size:26px;font-weight:900;margin-top:2px}
+.total-count{font-size:12px;opacity:.65;text-align:left}
+
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.panel-title{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;margin-bottom:12px}
+
+.bar-row{margin-bottom:11px}
+.bar-head{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.bar-head .v{color:var(--ink-soft)}
+.bar-track{height:8px;background:var(--line);border-radius:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:8px;transition:width .5s ease}
+
+.sort-bar{display:flex;align-items:center;gap:7px;margin-bottom:11px;padding:0 4px}
+.sort-label{font-size:13px;color:var(--ink-soft)}
+.sort-btn{padding:6px 13px;border-radius:18px;border:1px solid var(--line);background:var(--paper);font-size:13px;color:var(--ink-soft)}
+.sort-btn.active{background:var(--ink);color:#fbf8f1;border-color:var(--ink)}
+
+.group-head{display:flex;justify-content:space-between;font-weight:700;font-size:13px;padding:9px 2px;margin-bottom:3px;border-bottom:2px solid var(--line);cursor:pointer}
+.grp-count{color:var(--ink-soft);font-weight:400}
+.clickable{cursor:pointer}
+
+.tx-row{display:flex;align-items:center;gap:11px;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+.tx-row:active{background:var(--bg)}
+.tx-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tx-body{flex:1;min-width:0}
+.tx-desc{font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-size:12px;color:var(--ink-soft);margin-top:1px}
+.tx-amt{font-weight:700;font-size:15px;white-space:nowrap}
+.edit-hint{opacity:.3;font-size:12px}
+.empty{text-align:center;color:var(--ink-soft);padding:24px 0;font-size:14px}
+
+.fab{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:58px;height:58px;border-radius:29px;background:var(--accent);color:#fff;font-size:30px;box-shadow:0 8px 22px rgba(196,98,58,.45);z-index:40;display:flex;align-items:center;justify-content:center}
+
+.overlay{position:fixed;inset:0;background:rgba(43,38,32,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50;backdrop-filter:blur(2px)}
+.sheet{background:var(--paper);border-radius:24px 24px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom));width:100%;max-width:480px;box-shadow:0 -10px 40px rgba(0,0,0,.2);max-height:88vh;overflow-y:auto}
+.sheet-title{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:700;margin-bottom:12px}
+.field-label{font-size:13px;font-weight:500;color:var(--ink-soft);margin:0 4px 6px}
+.field-label .req{color:var(--accent)}
+.amount-wrap{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--bg);border:2px solid var(--accent);border-radius:16px;padding:8px 16px;margin-bottom:14px}
+.shekel{font-family:'Frank Ruhl Libre',serif;font-size:30px;font-weight:900;color:var(--accent)}
+.amount-input{flex:1;font-size:38px;font-weight:900;text-align:center;border:none;background:transparent;min-width:0;font-family:'Frank Ruhl Libre',serif;color:var(--ink)}
+.field{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:15px;margin-bottom:12px;color:var(--ink)}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.cat-chip{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:11px;color:var(--ink)}
+.cat-chip .ic{font-size:20px}
+.inst-wrap{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:8px}
+.inst-step{width:42px;height:42px;border-radius:11px;background:var(--paper);border:1px solid var(--line);font-size:24px;font-weight:700;color:var(--accent);display:flex;align-items:center;justify-content:center}
+.inst-step:active{background:var(--line)}
+.inst-mid{flex:1;text-align:center}
+.inst-num{font-family:'Frank Ruhl Libre',serif;font-size:24px;font-weight:900}
+.inst-cap{font-size:11px;color:var(--ink-soft)}
+.inst-info{font-size:13px;color:var(--accent);text-align:center;margin-bottom:12px;font-weight:500}
+.sheet-btns{display:flex;gap:9px;margin-top:6px}
+.btn{padding:14px;border-radius:14px;font-size:15px;font-weight:500}
+.btn-del{flex:1;border:1px solid #d99;background:transparent;color:#bb4a3a}
+.btn-cancel{flex:1;border:1px solid var(--line);background:transparent;color:var(--ink)}
+.btn-save{flex:1.4;background:var(--accent);color:#fff;font-weight:700;font-size:16px}
+.btn-save:disabled{background:var(--line);color:var(--ink-soft)}
+
+.install-banner{background:var(--paper);border:1px dashed var(--accent);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.install-banner button{color:var(--accent);font-weight:700;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const DEFAULT_CATEGORIES = [
+  { id:"housing", label:"דיור", icon:"🏠", color:"#c4623a" },
+  { id:"food", label:"מזון", icon:"🍽️", color:"#d98c3f" },
+  { id:"transport", label:"תחבורה", icon:"🚗", color:"#8a9b6e" },
+  { id:"health", label:"בריאות", icon:"⚕️", color:"#5b8a8a" },
+  { id:"kids", label:"ילדים", icon:"🧸", color:"#b06a8a" },
+  { id:"leisure", label:"פנאי", icon:"🎲", color:"#7a6aab" },
+  { id:"bills", label:"חשבונות", icon:"📄", color:"#a89060" },
+  { id:"shopping", label:"קניות", icon:"🛍️", color:"#9a6a6a" },
+  { id:"other", label:"אחר", icon:"🧾", color:"#9a9a9a" },
+];
+const PALETTE = ["#c4623a","#d98c3f","#8a9b6e","#5b8a8a","#b06a8a","#7a6aab","#a89060","#9a6a6a","#6a8aab","#7a9a7a","#aa7a5a","#9a9a9a"];
+const ICONS = ["🧾","💰","🎁","✈️","🏥","🐾","📱","💡","👕","🎓","🍔","☕","💊","🚌","🏋️","🎬","💄","🔧","📚","🎵","🌱","🍷"];
+const CATS_KEY = "expenses_cats_v1";      // legacy: שמר רק קטגוריות מותאמות
+const CATS_KEY_V2 = "expenses_cats_v2";   // חדש: כל הקטגוריות, כולן ניתנות לעריכה
+function loadCats(){
+  try{
+    const stored=localStorage.getItem(CATS_KEY_V2);
+    if(stored){ const list=JSON.parse(stored); if(Array.isArray(list)&&list.length) return list; }
+    // מיגרציה ממבנה ישן: ברירות מחדל + מותאמות, כולן הופכות לניתנות לעריכה
+    const legacy=JSON.parse(localStorage.getItem(CATS_KEY)||"[]");
+    const merged=[...DEFAULT_CATEGORIES.filter(d=>!legacy.some(c=>c.id===d.id)),...legacy].map(c=>({...c}));
+    merged.sort((a,b)=>(a.id==="other"?1:0)-(b.id==="other"?1:0));
+    localStorage.setItem(CATS_KEY_V2, JSON.stringify(merged));
+    return merged;
+  }catch(e){ return DEFAULT_CATEGORIES.map(c=>({...c})); }
+}
+function saveCats(list){ localStorage.setItem(CATS_KEY_V2, JSON.stringify(list)); }
+const catOf = id => state.cats.find(c=>c.id===id) || state.cats.find(c=>c.id==="other") || state.cats[state.cats.length-1];
+const fmt = n => "₪"+Math.round(n).toLocaleString("he-IL");
+const monthKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const monthLabel = k => { const [y,m]=k.split("-"); return `${MONTHS[+m-1]} ${y}`; };
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+const STORE_KEY = "expenses_v1";
+function load(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)||"[]"); }catch(e){ return []; } }
+function save(list){ localStorage.setItem(STORE_KEY, JSON.stringify(list)); }
+
+let state = {
+  exp: load().map(e=>({ ...e, note:(e.note&&e.note.trim())?e.note:"ללא תיאור" })),
+  cats: loadCats(),
+  month: monthKey(new Date()),
+  sortBy: "date",
+  form: null,
+  menu: false,
+  backup: null,
+  catForm: null,
+  manageCats: false,
+  pendingImport: null,
+  mergeFrom: null,
+  catDetail: null,
+  openGroups: new Set(),
+};
+
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredPrompt=e; render(); });
+
+function persist(next){ state.exp=next; save(next); render(); }
+
+function emptyForm(){ return { id:null, amount:"", cat:"food", note:"", date:todayStr(), installments:1 }; }
+
+function addMonths(dateStr, n){
+  const [y,m,d]=dateStr.split("-").map(Number);
+  const base=new Date(y, m-1+n, 1);
+  const last=new Date(base.getFullYear(), base.getMonth()+1, 0).getDate();
+  const day=Math.min(d, last);
+  return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+}
+
+function saveForm(){
+  const f=state.form, amt=parseFloat(f.amount), note=f.note.trim();
+  const n=Math.max(1, parseInt(f.installments)||1);
+  if(!amt||amt<=0||!note) return;
+  if(f.id){
+    // editing a single record (installments not re-split on edit)
+    persist(state.exp.map(e=>e.id===f.id?{...e,amount:amt,cat:f.cat,note,date:f.date}:e));
+  } else if(n>1){
+    const planId="p"+Date.now().toString(36);
+    const base=Math.floor((amt/n)*100)/100;
+    const remainder=Math.round((amt-base*n)*100)/100;
+    const recs=[];
+    for(let i=0;i<n;i++){
+      const part = i===0 ? +(base+remainder).toFixed(2) : base;
+      recs.push({ id:Date.now()+""+Math.random().toString(36).slice(2,6),
+        amount:part, cat:f.cat, note:`${note} (${i+1}/${n})`, date:addMonths(f.date,i),
+        plan:planId });
+    }
+    persist([...recs, ...state.exp]);
+  } else {
+    persist([{ id:Date.now()+""+Math.random().toString(36).slice(2,6), amount:amt, cat:f.cat, note, date:f.date }, ...state.exp]);
+  }
+  state.form=null; render();
+}
+function delExp(id){
+  const rec=state.exp.find(e=>e.id===id);
+  if(rec && rec.plan){
+    const siblings=state.exp.filter(e=>e.plan===rec.plan).length;
+    if(siblings>1 && confirm(`זהו תשלום מתוך סדרה של ${siblings} תשלומים. למחוק את כל הסדרה?`)){
+      persist(state.exp.filter(e=>e.plan!==rec.plan)); state.form=null; render(); return;
+    }
+  }
+  persist(state.exp.filter(e=>e.id!==id)); state.form=null; render();
+}
+
+function exportCSV(){
+  const me = monthExp();
+  if(!me.length) return;
+  const rows=[...me].sort((a,b)=>a.date.localeCompare(b.date));
+  const total=rows.reduce((s,e)=>s+e.amount,0);
+  const head=["תאריך","סוג","תיאור","סכום"];
+  const lines=rows.map(e=>[e.date,catOf(e.cat).label,(e.note||"").replace(/"/g,'""'),e.amount].map(v=>`"${v}"`).join(","));
+  lines.push(""); lines.push(`"","","סך הכל","${Math.round(total)}"`);
+  const csv="\uFEFF"+[head.map(h=>`"${h}"`).join(","),...lines].join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=`הוצאות-${state.month}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportJSON(){
+  const data={ app:"expenses", version:2, exported:new Date().toISOString(), expenses:state.exp, categories:state.cats };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=`הוצאות-גיבוי-${todayStr()}.json`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function persistCats(next){ state.cats=next; saveCats(next); render(); }
+function openCatForm(id){
+  if(id){ const c=state.cats.find(x=>x.id===id); if(c){ state.catForm={ editId:id, label:c.label, icon:c.icon, color:c.color }; render(); return; } }
+  state.catForm={ editId:null, label:"", icon:ICONS[0], color:PALETTE[0] };
+  render(); setTimeout(()=>{const i=document.getElementById("catLabel");if(i)i.focus();},50);
+}
+function saveCategory(){
+  const f=state.catForm, label=(f.label||"").trim();
+  if(!label) return;
+  if(state.cats.some(c=>c.label===label && c.id!==f.editId)){ alert("קטגוריה בשם זה כבר קיימת."); return; }
+  if(f.editId){
+    persistCats(state.cats.map(c=>c.id===f.editId?{...c,label,icon:f.icon,color:f.color}:c));
+  } else {
+    const id="c_"+Date.now().toString(36);
+    const next=[...state.cats]; const oi=next.findIndex(c=>c.id==="other");
+    const nc={ id, label, icon:f.icon, color:f.color };
+    if(oi>=0) next.splice(oi,0,nc); else next.push(nc);
+    persistCats(next);
+    if(state.form) state.form.cat=id;
+  }
+  state.catForm=null; render();
+}
+function delCategory(id){
+  if(state.cats.length<=1){ alert("חייבת להישאר לפחות קטגוריה אחת."); return; }
+  const remaining=state.cats.filter(c=>c.id!==id);
+  const fb=remaining.find(c=>c.id==="other")||remaining[0];
+  if(!confirm(`למחוק קטגוריה זו? הוצאות קיימות יועברו ל"${fb.label}".`)) return;
+  if(state.exp.some(e=>e.cat===id)) persist(state.exp.map(e=>e.cat===id?{...e,cat:fb.id}:e));
+  persistCats(remaining);
+  render();
+}
+function openMergeCat(id){ state.mergeFrom=id; render(); }
+function mergeCategory(targetId){
+  const from=state.mergeFrom;
+  if(!from || from===targetId){ state.mergeFrom=null; render(); return; }
+  const t=state.cats.find(c=>c.id===targetId);
+  const f=state.cats.find(c=>c.id===from);
+  if(!t||!f) { state.mergeFrom=null; render(); return; }
+  const n=state.exp.filter(e=>e.cat===from).length;
+  if(!confirm(`למזג את "${f.label}" לתוך "${t.label}"? ${n} הוצאות יועברו, והקטגוריה "${f.label}" תימחק.`)){ return; }
+  if(n) persist(state.exp.map(e=>e.cat===from?{...e,cat:targetId}:e));
+  persistCats(state.cats.filter(c=>c.id!==from));
+  state.mergeFrom=null; render();
+}
+const labelToId = label => { const c=state.cats.find(c=>c.label===String(label).trim()); return c?c.id:"other"; };
+
+function parseCSV(text){
+  const clean=text.replace(/^\uFEFF/,"");
+  const lines=clean.split(/\r?\n/), rows=[];
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const cells=[]; let cur="",inQ=false;
+    for(let i=0;i<line.length;i++){ const ch=line[i];
+      if(inQ){ if(ch==='"'&&line[i+1]==='"'){cur+='"';i++;} else if(ch==='"')inQ=false; else cur+=ch; }
+      else{ if(ch==='"')inQ=true; else if(ch===","){cells.push(cur);cur="";} else cur+=ch; }
+    }
+    cells.push(cur); rows.push(cells);
+  }
+  if(rows.length<2) return [];
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const [date,cat,note,amount]=rows[i];
+    const amt=parseFloat(amount);
+    if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!amt||amt<=0) continue;
+    out.push({ id:Date.now()+""+Math.random().toString(36).slice(2,8), amount:amt, cat:labelToId(cat), note:(note||"").trim()||"ללא תיאור", date });
+  }
+  return out;
+}
+
+function restoreCategories(list){
+  if(!Array.isArray(list)) return;
+  const merged=[...state.cats];
+  list.filter(c=>c.id&&c.label).forEach(c=>{
+    const idx=merged.findIndex(x=>x.id===c.id);
+    if(idx<0){
+      const oi=merged.findIndex(x=>x.id==="other");
+      const nc={...c};
+      if(oi>=0) merged.splice(oi,0,nc); else merged.push(nc);
+    } else if(merged[idx].label==="קטגוריה משוחזרת" && c.label!=="קטגוריה משוחזרת"){
+      // ריפוי שם: placeholder מקבל את השם/אייקון/צבע האמיתיים מהגיבוי
+      merged[idx]={...merged[idx], label:c.label, icon:c.icon||merged[idx].icon, color:c.color||merged[idx].color};
+    }
+  });
+  persistCats(merged);
+}
+function healOrphanCats(expenses){
+  const known=new Set(state.cats.map(c=>c.id));
+  const orphans=[...new Set((expenses||[]).map(e=>e.cat).filter(id=>id&&!known.has(id)))];
+  if(!orphans.length) return;
+  const merged=[...state.cats];
+  orphans.forEach(id=>{
+    const oi=merged.findIndex(x=>x.id==="other");
+    const nc={ id, label:"קטגוריה משוחזרת", icon:"🏷️", color:"#9a9a9a", custom:true };
+    if(oi>=0) merged.splice(oi,0,nc); else merged.push(nc);
+  });
+  persistCats(merged);
+}
+function prepareImport(parsed){
+  const cats=(parsed && Array.isArray(parsed.categories)) ? parsed.categories.filter(c=>c.id&&c.label).map(c=>({...c})) : [];
+  const arr=Array.isArray(parsed)?parsed:(parsed.expenses||[]);
+  const expenses=(arr||[]).map(e=>({ id:e.id||Date.now()+""+Math.random().toString(36).slice(2,8), amount:parseFloat(e.amount), cat:e.cat||labelToId(e.category||"אחר"), note:(e.note||"").trim()||"ללא תיאור", date:e.date, ...(e.plan?{plan:e.plan}:{}) })).filter(e=>e.amount>0&&e.date);
+  return { expenses, categories:cats };
+}
+function stageImport(data){
+  if(!data.expenses.length){ alert("לא נמצאו רשומות תקינות."); return; }
+  state.pendingImport=data; state.backup=null; render();
+}
+function applyImport(mode){
+  const data=state.pendingImport; if(!data) return;
+  if(mode==="replace"){
+    let cats=DEFAULT_CATEGORIES.map(c=>({...c}));
+    data.categories.forEach(c=>{ const i=cats.findIndex(x=>x.id===c.id); if(i>=0)cats[i]={...cats[i],...c}; else cats.push({...c}); });
+    if(!cats.some(c=>c.id==="other")) cats.push({id:"other",label:"אחר",icon:"🧾",color:"#9a9a9a"});
+    persistCats(cats);
+    healOrphanCats(data.expenses);
+    persist(data.expenses);
+    state.pendingImport=null; render();
+    alert(`הוחלפו כל הנתונים: ${data.expenses.length} רשומות.`);
+  } else {
+    restoreCategories(data.categories);
+    healOrphanCats(data.expenses);
+    const ids=new Set(state.exp.map(e=>e.id));
+    const seen=new Set(state.exp.map(e=>`${e.date}|${e.amount}|${e.note}`));
+    const fresh=data.expenses.filter(e=>!ids.has(e.id) && !seen.has(`${e.date}|${e.amount}|${e.note}`));
+    persist([...fresh,...state.exp]);
+    state.pendingImport=null; render();
+    const skipped=data.expenses.length-fresh.length;
+    alert(`יובאו ${fresh.length} רשומות${skipped>0?` (${skipped} כפילויות דולגו)`:""}.`);
+  }
+}
+function handleImport(file){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const text=ev.target.result;
+      if(file.name.toLowerCase().endsWith(".json")){
+        stageImport(prepareImport(JSON.parse(text)));
+      } else {
+        stageImport({ expenses:parseCSV(text), categories:[] });
+      }
+    }catch(err){ alert("שגיאה בקריאת הקובץ. ודא שזהו קובץ JSON או CSV תקין."); }
+  };
+  reader.readAsText(file);
+}
+
+function pickFile(){
+  const inp=document.createElement("input");
+  inp.type="file"; inp.accept=".json,.csv,text/csv,application/json";
+  inp.onchange=e=>{ const f=e.target.files[0]; if(f) handleImport(f); };
+  inp.click();
+}
+
+function openBackup(){ const data={app:"expenses",version:2,exported:new Date().toISOString(),expenses:state.exp,categories:state.cats}; state.backup={mode:"export",text:JSON.stringify(data,null,2)}; render(); }
+function openRestore(){ state.backup={mode:"import",text:""}; render(); }
+function copyBackup(){ const t=document.getElementById("backupArea"); if(t){t.select();} try{ navigator.clipboard.writeText(state.backup.text); alert("הועתק! שמור את הטקסט במקום בטוח."); }catch(e){ alert("בחר הכל בתיבה והעתק ידנית."); } }
+function importFromText(text){
+  try{ stageImport(prepareImport(JSON.parse(text))); }
+  catch(err){ alert("הטקסט אינו JSON תקין."); }
+}
+
+function monthsList(){ const s=new Set(state.exp.map(e=>e.date.slice(0,7))); s.add(monthKey(new Date())); return [...s].sort().reverse(); }
+function monthExp(){ return state.exp.filter(e=>e.date.slice(0,7)===state.month); }
+
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function render(){
+  const app=document.getElementById("app");
+  const me=monthExp();
+  const total=me.reduce((s,e)=>s+e.amount,0);
+
+  // by category
+  const cm={}; me.forEach(e=>cm[e.cat]=(cm[e.cat]||0)+e.amount);
+  const byCat=Object.entries(cm).map(([id,v])=>({id,v})).sort((a,b)=>b.v-a.v);
+  const maxCat = byCat.length?byCat[0].v:1;
+
+  // sorted + grouped list (grouped by the active sort dimension, collapsed by default)
+  let listHTML;
+  if(!me.length){ listHTML=`<div class="empty">אין הוצאות בחודש זה</div>`; }
+  else{
+    const groups={};
+    me.forEach(e=>{ const k=groupKeyFor(e); (groups[k]=groups[k]||[]).push(e); });
+    let entries=Object.entries(groups).map(([key,items])=>({key,items,sum:items.reduce((s,e)=>s+e.amount,0)}));
+    if(state.sortBy==="date") entries.sort((a,b)=>b.key.localeCompare(a.key));
+    else if(state.sortBy==="cat") entries.sort((a,b)=>b.sum-a.sum);
+    else { const ord=["b1000","b500","b200","b100","b0"]; entries.sort((a,b)=>ord.indexOf(a.key)-ord.indexOf(b.key)); }
+    entries.forEach(g=>{
+      if(state.sortBy==="date") g.items.sort((a,b)=>b.date.localeCompare(a.date)||b.amount-a.amount);
+      else g.items.sort((a,b)=>b.amount-a.amount);
+    });
+    listHTML=entries.map(g=>{
+      const open=state.openGroups.has(`${state.sortBy}:${g.key}`);
+      return `<div style="margin-bottom:10px">
+        <div class="group-head" onclick="toggleGroup('${g.key}')">
+          <span>${open?"▾":"▸"} ${groupLabel(g.key)} <span class="grp-count">· ${g.items.length}</span></span>
+          <span>${fmt(g.sum)}</span>
+        </div>
+        ${open?g.items.map(rowHTML).join(""):""}
+      </div>`;
+    }).join("");
+  }
+
+  const installHTML = deferredPrompt ? `<div class="install-banner"><span>התקן את האפליקציה על מסך הבית לגישה מהירה</span><button onclick="doInstall()">התקנה</button></div>` : "";
+
+  app.innerHTML = `
+    <div class="header">
+      <div><div class="brand">הוצאות<span>.</span></div><div class="sub">נשמר על המכשיר · אופליין</div></div>
+      <div class="hbtns" style="position:relative">
+        <button class="export-btn" onclick="state.menu=!state.menu;render()">⋯ קובץ</button>
+        ${state.menu?`<div class="menu-backdrop" onclick="state.menu=false;render()"></div>
+          <div class="menu">
+            <button class="menu-item" onclick="state.menu=false;render();openManageCats()">🏷️ ניהול קטגוריות</button>
+            <div class="menu-div"></div>
+            <button class="menu-item" onclick="state.menu=false;render();exportCSV()">⤓ ייצוא לאקסל (CSV)</button>
+            <button class="menu-item" onclick="state.menu=false;render();exportJSON()">📄 גיבוי לקובץ (JSON)</button>
+            <button class="menu-item" onclick="state.menu=false;render();openBackup()">💾 גיבוי לטקסט (העתקה)</button>
+            <div class="menu-div"></div>
+            <button class="menu-item" onclick="state.menu=false;render();openRestore()">📋 שחזור מטקסט (הדבקה)</button>
+            <button class="menu-item" onclick="state.menu=false;render();pickFile()">📁 ייבוא מקובץ (JSON / CSV)</button>
+          </div>`:""}
+        <select class="month-sel" onchange="state.month=this.value;render()">
+          ${monthsList().map(m=>`<option value="${m}" ${m===state.month?"selected":""}>${monthLabel(m)}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    ${installHTML}
+    <div class="total-card">
+      <div><div class="total-label">סך הוצאות החודש</div><div class="total-num">${fmt(total)}</div></div>
+      <div class="total-count">${me.length} תנועות</div>
+    </div>
+    ${byCat.length?`<div class="panel"><div class="panel-title">פילוח לפי סוג</div>${byCat.map(({id,v})=>{const c=catOf(id);return `<div class="bar-row clickable" onclick="openCatDetail('${id}')"><div class="bar-head"><span>${c.icon} ${c.label}</span><span class="v">${fmt(v)} · ${Math.round(v/total*100)}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${(v/maxCat)*100}%;background:${c.color}"></div></div></div>`;}).join("")}</div>`:""}
+    <div class="sort-bar"><span class="sort-label">מיון:</span>
+      ${[["date","תאריך"],["amount","סכום"],["cat","סוג"]].map(([k,l])=>`<button class="sort-btn ${state.sortBy===k?"active":""}" onclick="state.sortBy='${k}';render()">${l}</button>`).join("")}
+    </div>
+    <div class="panel">${listHTML}</div>
+    <button class="fab" onclick="openForm()">＋</button>
+    ${state.form?formHTML():""}
+    ${state.backup?backupHTML():""}
+    ${state.catForm?catFormHTML():""}
+    ${state.manageCats?manageCatsHTML():""}
+    ${state.pendingImport?importChooseHTML():""}
+    ${state.mergeFrom?mergeCatsHTML():""}
+    ${state.catDetail?catDetailHTML():""}
+  `;
+}
+
+function rowHTML(e){
+  const c=catOf(e.cat);
+  return `<div class="tx-row" onclick="openForm('${e.id}')">
+    <div class="tx-icon" style="background:${c.color}22">${c.icon}</div>
+    <div class="tx-body"><div class="tx-desc">${esc(e.note)}</div><div class="tx-meta">${c.label} · ${e.date.slice(8)}/${e.date.slice(5,7)}</div></div>
+    <div class="tx-amt">${fmt(e.amount)}</div><span class="edit-hint">✎</span>
+  </div>`;
+}
+
+function groupKeyFor(e){
+  if(state.sortBy==="cat") return e.cat;
+  if(state.sortBy==="date") return e.date;
+  const a=e.amount;
+  if(a>=1000) return "b1000"; if(a>=500) return "b500"; if(a>=200) return "b200"; if(a>=100) return "b100"; return "b0";
+}
+function groupLabel(key){
+  if(state.sortBy==="cat"){ const c=catOf(key); return `${c.icon} ${esc(c.label)}`; }
+  if(state.sortBy==="date"){ const [y,m,d]=key.split("-"); return `${d}/${m}/${y}`; }
+  return {b1000:"1,000 ₪ ומעלה",b500:"500–999 ₪",b200:"200–499 ₪",b100:"100–199 ₪",b0:"עד 100 ₪"}[key]||key;
+}
+function toggleGroup(key){
+  const k=`${state.sortBy}:${key}`;
+  if(state.openGroups.has(k)) state.openGroups.delete(k); else state.openGroups.add(k);
+  render();
+}
+function openCatDetail(id){ state.catDetail=id; render(); }
+function catDetailHTML(){
+  const id=state.catDetail, c=catOf(id);
+  const items=monthExp().filter(e=>e.cat===id).sort((a,b)=>b.date.localeCompare(a.date)||b.amount-a.amount);
+  const sum=items.reduce((s,e)=>s+e.amount,0);
+  return `<div class="overlay" onclick="if(event.target===this){state.catDetail=null;render()}">
+    <div class="sheet">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">
+        <div class="tx-icon" style="background:${c.color}22">${c.icon}</div>
+        <div style="flex:1"><div style="font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700">${esc(c.label)}</div><div style="font-size:12px;color:var(--ink-soft)">${monthLabel(state.month)} · ${items.length} תנועות</div></div>
+        <div style="font-weight:700;font-size:18px">${fmt(sum)}</div>
+      </div>
+      <div style="max-height:52vh;overflow:auto;margin-bottom:12px">${items.length?items.map(rowHTML).join(""):`<div class="empty">אין תנועות</div>`}</div>
+      <div class="sheet-btns"><button class="btn btn-cancel" onclick="state.catDetail=null;render()">סגירה</button></div>
+    </div>
+  </div>`;
+}
+
+function formHTML(){
+  const f=state.form;
+  const valid = f.note.trim() && parseFloat(f.amount)>0;
+  return `<div class="overlay" onclick="if(event.target===this){state.form=null;render()}">
+    <div class="sheet">
+      <div class="sheet-title">${f.id?"עריכת הוצאה":"הוצאה חדשה"}</div>
+      <div class="field-label">כמה שילמת?</div>
+      <div class="amount-wrap"><span class="shekel">₪</span>
+        <input class="amount-input" type="text" inputmode="decimal" dir="ltr" placeholder="0" value="${esc(f.amount)}" oninput="state.form.amount=this.value.replace(/[^0-9.]/g,'');updateSaveBtn()">
+      </div>
+      <div class="field-label">תיאור ההוצאה <span class="req">*</span></div>
+      <input class="field" placeholder="לדוגמה: קניות בסופר, דלק…" value="${esc(f.note)}" oninput="state.form.note=this.value;updateSaveBtn()">
+      <div class="field-label">סוג</div>
+      <div class="cat-grid">${state.cats.map(c=>`<button class="cat-chip" style="${f.cat===c.id?`border-color:${c.color};box-shadow:0 0 0 2px ${c.color};background:#fff`:""}" onclick="state.form.cat='${c.id}';render()"><span class="ic">${c.icon}</span>${c.label}</button>`).join("")}<button class="cat-chip" style="border-style:dashed;color:var(--accent)" onclick="openCatForm()"><span class="ic">＋</span>הוסף</button></div>
+      <div class="field-label">תאריך</div>
+      <input class="field" type="date" value="${f.date}" onchange="state.form.date=this.value">
+      ${f.id ? "" : installmentsHTML(f)}
+      <div class="sheet-btns">
+        ${f.id?`<button class="btn btn-del" onclick="delExp('${f.id}')">מחיקה</button>`:""}
+        <button class="btn btn-cancel" onclick="state.form=null;render()">ביטול</button>
+        <button class="btn btn-save" id="saveBtn" ${valid?"":"disabled"} onclick="saveForm()">שמירה</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function installmentsHTML(f){
+  const n=Math.max(1,parseInt(f.installments)||1);
+  const amt=parseFloat(f.amount)||0;
+  const per = n>1 && amt>0 ? fmt(Math.floor((amt/n)*100)/100) : "";
+  const startM = monthLabel(f.date.slice(0,7));
+  const endM = n>1 ? monthLabel(addMonths(f.date,n-1).slice(0,7)) : "";
+  return `<div class="field-label">תשלומים</div>
+    <div class="inst-wrap">
+      <button class="inst-step" onclick="changeInst(-1)">−</button>
+      <div class="inst-mid"><div class="inst-num">${n}</div><div class="inst-cap">${n>1?"תשלומים":"תשלום אחד"}</div></div>
+      <button class="inst-step" onclick="changeInst(1)">＋</button>
+    </div>
+    ${n>1&&amt>0?`<div class="inst-info" id="instInfo">${per} בכל חודש · מ${startM} עד ${endM}</div>`:n>1?`<div class="inst-info" id="instInfo">הסכום יתחלק שווה ל-${n} חודשים</div>`:`<div class="inst-info" id="instInfo" style="display:none"></div>`}`;
+}
+function changeInst(delta){
+  const f=state.form;
+  f.installments=Math.min(60, Math.max(1, (parseInt(f.installments)||1)+delta));
+  render();
+}
+function backupHTML(){
+  const b=state.backup, isExp=b.mode==="export";
+  return `<div class="overlay" onclick="if(event.target===this){state.backup=null;render()}">
+    <div class="sheet">
+      <div class="sheet-title">${isExp?"גיבוי נתונים":"שחזור נתונים"}</div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5">${isExp?"העתק את כל הטקסט ושמור אותו (הערה/מייל). לשחזור הדבק אותו חזרה.":"הדבק כאן את טקסט הגיבוי ולחץ שחזור."}</div>
+      <textarea id="backupArea" dir="ltr" ${isExp?"readonly":""} placeholder='{"expenses":[ ... ]}' style="width:100%;height:180px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:12px;font-family:monospace;color:var(--ink);resize:none;margin-bottom:12px;line-height:1.4" oninput="state.backup.text=this.value">${esc(b.text)}</textarea>
+      <div class="sheet-btns">
+        <button class="btn btn-cancel" onclick="state.backup=null;render()">סגירה</button>
+        ${isExp
+          ? `<button class="btn btn-save" onclick="copyBackup()">העתקה</button>`
+          : `<button class="btn btn-save" onclick="importFromText(state.backup.text)">שחזור</button>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function openManageCats(){ state.manageCats=true; render(); }
+
+function catFormHTML(){
+  const f=state.catForm;
+  return `<div class="overlay" style="z-index:70" onclick="if(event.target===this){state.catForm=null;render()}">
+    <div class="sheet">
+      <div class="sheet-title">${f.editId?"עריכת קטגוריה":"קטגוריה חדשה"}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <div style="width:54px;height:54px;border-radius:14px;background:${f.color}22;display:flex;align-items:center;justify-content:center;font-size:28px">${f.icon}</div>
+        <input id="catLabel" class="field" style="margin-bottom:0;flex:1" placeholder="שם הקטגוריה" value="${esc(f.label)}" oninput="state.catForm.label=this.value;document.getElementById('catAddBtn').disabled=!this.value.trim()">
+      </div>
+      <div class="field-label">אייקון</div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:14px">
+        ${ICONS.map(ic=>`<button onclick="state.catForm.icon='${ic}';render()" style="aspect-ratio:1;border-radius:10px;border:1px solid ${f.icon===ic?'var(--accent)':'var(--line)'};background:${f.icon===ic?'#fff':'var(--bg)'};font-size:18px">${ic}</button>`).join("")}
+      </div>
+      <div class="field-label">צבע</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;padding:4px 2px">
+        ${PALETTE.map(col=>`<button onclick="state.catForm.color='${col}';render()" style="width:30px;height:30px;border-radius:30px;border:none;background:${col};${f.color===col?`box-shadow:0 0 0 3px var(--paper),0 0 0 5px ${col}`:''}"></button>`).join("")}
+      </div>
+      <div class="sheet-btns">
+        <button class="btn btn-cancel" onclick="state.catForm=null;render()">ביטול</button>
+        <button id="catAddBtn" class="btn btn-save" ${f.label.trim()?"":"disabled"} onclick="saveCategory()">${f.editId?"שמירה":"הוספה"}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function manageCatsHTML(){
+  return `<div class="overlay" onclick="if(event.target===this){state.manageCats=false;render()}">
+    <div class="sheet">
+      <div class="sheet-title">ניהול קטגוריות</div>
+      <div style="margin-bottom:12px">
+        ${state.cats.map(c=>{const n=state.exp.filter(e=>e.cat===c.id).length;return `<div style="display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line)">
+          <div class="tx-icon" style="background:${c.color}22;cursor:pointer" onclick="openCatForm('${c.id}')">${c.icon}</div>
+          <span style="flex:1;font-size:15px;cursor:pointer" onclick="openCatForm('${c.id}')">${c.label}<span style="color:var(--ink-soft);font-size:12px"> · ${n}</span></span>
+          <button onclick="openCatForm('${c.id}')" style="padding:5px 10px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:13px">עריכה</button>
+          <button onclick="openMergeCat('${c.id}')" style="padding:5px 10px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:13px">מיזוג</button>
+          <button onclick="delCategory('${c.id}')" style="padding:5px 10px;border-radius:9px;border:1px solid #d99;background:transparent;color:#bb4a3a;font-size:13px">מחיקה</button>
+        </div>`;}).join("")}
+      </div>
+      <div class="sheet-btns">
+        <button class="btn btn-cancel" onclick="state.manageCats=false;render()">סגירה</button>
+        <button class="btn btn-save" onclick="state.manageCats=false;openCatForm()">＋ קטגוריה חדשה</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function mergeCatsHTML(){
+  const from=state.cats.find(c=>c.id===state.mergeFrom); if(!from) return "";
+  const targets=state.cats.filter(c=>c.id!==from.id);
+  return `<div class="overlay" style="z-index:75" onclick="if(event.target===this){state.mergeFrom=null;render()}">
+    <div class="sheet">
+      <div class="sheet-title">מיזוג "${esc(from.label)}"</div>
+      <div style="font-size:14px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5">כל ההוצאות יועברו לקטגוריה שתבחר, והקטגוריה "${esc(from.label)}" תימחק.</div>
+      <div style="margin-bottom:12px">
+        ${targets.map(c=>`<button onclick="mergeCategory('${c.id}')" style="display:flex;align-items:center;gap:11px;width:100%;padding:10px 8px;border:none;border-bottom:1px solid var(--line);background:transparent;font-size:15px;color:var(--ink);text-align:right">
+          <span class="tx-icon" style="background:${c.color}22">${c.icon}</span><span>${esc(c.label)}</span></button>`).join("")}
+      </div>
+      <div class="sheet-btns">
+        <button class="btn btn-cancel" onclick="state.mergeFrom=null;render()">ביטול</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function importChooseHTML(){
+  const d=state.pendingImport, has=state.exp.length>0;
+  return `<div class="overlay" style="z-index:80" onclick="if(event.target===this){state.pendingImport=null;render()}">
+    <div class="sheet">
+      <div class="sheet-title">ייבוא נתונים</div>
+      <div style="font-size:14px;color:var(--ink);margin-bottom:6px">נמצאו <b>${d.expenses.length}</b> רשומות${d.categories.length?` ו-<b>${d.categories.length}</b> קטגוריות`:""}.</div>
+      ${has?`<div style="font-size:14px;color:var(--ink-soft);margin-bottom:14px;line-height:1.5">יש לך כבר ${state.exp.length} רשומות. בחר כיצד להמשיך:</div>`:`<div style="margin-bottom:14px"></div>`}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-save" style="width:100%" onclick="applyImport('merge')">מזג — הוסף בלי כפילויות</button>
+        ${has?`<button class="btn btn-del" style="width:100%" onclick="if(confirm('פעולה זו תמחק את כל ${state.exp.length} הרשומות הקיימות ותחליף אותן. אין חזרה. להמשיך?'))applyImport('replace')">החלף הכל — מחק קיים</button>`:""}
+        <button class="btn btn-cancel" style="width:100%" onclick="state.pendingImport=null;render()">ביטול</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function updateSaveBtn(){
+  const f=state.form, b=document.getElementById("saveBtn");
+  if(b) b.disabled = !(f.note.trim() && parseFloat(f.amount)>0);
+  const info=document.getElementById("instInfo");
+  if(info && !f.id){
+    const n=Math.max(1,parseInt(f.installments)||1), amt=parseFloat(f.amount)||0;
+    if(n>1 && amt>0){
+      const per=fmt(Math.floor((amt/n)*100)/100);
+      info.style.display=""; info.textContent=`${per} בכל חודש · מ${monthLabel(f.date.slice(0,7))} עד ${monthLabel(addMonths(f.date,n-1).slice(0,7))}`;
+    } else if(n>1){ info.style.display=""; info.textContent=`הסכום יתחלק שווה ל-${n} חודשים`; }
+    else { info.style.display="none"; }
+  }
+}
+
+function openForm(id){
+  if(id){ const e=state.exp.find(x=>x.id===id); state.form={...e,amount:String(e.amount)}; }
+  else state.form=emptyForm();
+  render();
+  setTimeout(()=>{ const i=document.querySelector(".amount-input"); if(i)i.focus(); },50);
+}
+function doInstall(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; render(); } }
+
+// expose for inline handlers
+window.state=state; window.render=render; window.openForm=openForm; window.saveForm=saveForm;
+window.delExp=delExp; window.exportCSV=exportCSV; window.updateSaveBtn=updateSaveBtn; window.doInstall=doInstall;
+window.exportJSON=exportJSON; window.pickFile=pickFile; window.handleImport=handleImport;
+window.openBackup=openBackup; window.openRestore=openRestore; window.copyBackup=copyBackup; window.importFromText=importFromText; window.backupHTML=backupHTML;
+window.openCatForm=openCatForm; window.saveCategory=saveCategory; window.addCategory=saveCategory; window.delCategory=delCategory; window.openManageCats=openManageCats; window.catFormHTML=catFormHTML; window.manageCatsHTML=manageCatsHTML;
+window.openMergeCat=openMergeCat; window.mergeCategory=mergeCategory; window.mergeCatsHTML=mergeCatsHTML;
+window.applyImport=applyImport; window.importChooseHTML=importChooseHTML;
+window.toggleGroup=toggleGroup; window.openCatDetail=openCatDetail; window.catDetailHTML=catDetailHTML; window.groupKeyFor=groupKeyFor; window.groupLabel=groupLabel;
+window.changeInst=changeInst; window.installmentsHTML=installmentsHTML; window.addMonths=addMonths;
+
+// register a minimal service worker for offline (inline via blob)
+if("serviceWorker" in navigator){
+  const swCode = `self.addEventListener("install",e=>self.skipWaiting());self.addEventListener("activate",e=>self.clients.claim());self.addEventListener("fetch",e=>{});`;
+  const swUrl = URL.createObjectURL(new Blob([swCode],{type:"text/javascript"}));
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+
+render();
+</script>
+</body>
+</html>
