@@ -92,5 +92,15 @@ W.mergeCategory("housing"); // מזון -> דיור
 check("מיזוג קטגוריה מוריד אחת מהרשימה", S.cats.length === beforeMerge - 1);
 check("מיזוג לא יצר יתומים", S.exp.every(e => S.cats.some(c => c.id === e.cat)));
 
+// 9) דגל tax_deductible נשמר בייבוא JSON
+W.importFromText(JSON.stringify({
+  app: "expenses", version: 2,
+  expenses: [{ id: "tax1", amount: 500, cat: "housing", note: "ציוד עסקי", date: "2026-06-09", tax_deductible: true }],
+  categories: [],
+}));
+W.applyImport("merge");
+const taxRow = S.exp.find(e => e.id === "tax1");
+check("דגל tax_deductible נשמר בייבוא JSON", !!taxRow && taxRow.tax_deductible === true);
+
 console.log(`\n${fail === 0 ? "✅" : "❌"}  ${pass} עברו, ${fail} נכשלו`);
 process.exit(fail === 0 ? 0 : 1);

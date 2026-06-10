@@ -97,6 +97,14 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 
 .install-banner{background:var(--paper);border:1px dashed var(--accent);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .install-banner button{color:var(--accent);font-weight:700;white-space:nowrap}
+
+.tax-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;cursor:pointer}
+.switch{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;transition:background .2s;flex-shrink:0}
+.switch.on{background:var(--green)}
+.switch .knob{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:10px;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch.on .knob{transform:translateX(-18px)}
+.tax-badge{display:inline-block;font-size:10px;background:var(--green);color:#fff;border-radius:6px;padding:1px 6px;margin-inline-start:6px;vertical-align:middle;font-weight:500}
+.tax-panel{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;background:#3f7a5b14;border-color:#3f7a5b40}
 </style>
 </head>
 <body>
@@ -172,7 +180,7 @@ window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferred
 function persist(next){ state.exp=next; save(next); render();
   if(window.sb && uid()) syncExpenses(next).then(()=>flagSyncErr(false)).catch(e=>{console.error(e);flagSyncErr(true);}); }
 
-function emptyForm(){ return { id:null, amount:"", cat:"food", note:"", date:todayStr(), installments:1 }; }
+function emptyForm(){ return { id:null, amount:"", cat:"food", note:"", date:todayStr(), installments:1, tax_deductible:false }; }
 
 function addMonths(dateStr, n){
   const [y,m,d]=dateStr.split("-").map(Number);
@@ -188,7 +196,7 @@ function saveForm(){
   if(!amt||amt<=0||!note) return;
   if(f.id){
     // editing a single record (installments not re-split on edit)
-    persist(state.exp.map(e=>e.id===f.id?{...e,amount:amt,cat:f.cat,note,date:f.date}:e));
+    persist(state.exp.map(e=>e.id===f.id?{...e,amount:amt,cat:f.cat,note,date:f.date,tax_deductible:!!f.tax_deductible}:e));
   } else if(n>1){
     const planId="p"+Date.now().toString(36);
     const base=Math.floor((amt/n)*100)/100;
@@ -198,11 +206,11 @@ function saveForm(){
       const part = i===0 ? +(base+remainder).toFixed(2) : base;
       recs.push({ id:Date.now()+""+Math.random().toString(36).slice(2,6),
         amount:part, cat:f.cat, note:`${note} (${i+1}/${n})`, date:addMonths(f.date,i),
-        plan:planId });
+        plan:planId, tax_deductible:!!f.tax_deductible });
     }
     persist([...recs, ...state.exp]);
   } else {
-    persist([{ id:Date.now()+""+Math.random().toString(36).slice(2,6), amount:amt, cat:f.cat, note, date:f.date }, ...state.exp]);
+    persist([{ id:Date.now()+""+Math.random().toString(36).slice(2,6), amount:amt, cat:f.cat, note, date:f.date, tax_deductible:!!f.tax_deductible }, ...state.exp]);
   }
   state.form=null; render();
 }
@@ -222,9 +230,10 @@ function exportCSV(){
   if(!me.length) return;
   const rows=[...me].sort((a,b)=>a.date.localeCompare(b.date));
   const total=rows.reduce((s,e)=>s+e.amount,0);
-  const head=["תאריך","סוג","תיאור","סכום"];
-  const lines=rows.map(e=>[e.date,catOf(e.cat).label,(e.note||"").replace(/"/g,'""'),e.amount].map(v=>`"${v}"`).join(","));
-  lines.push(""); lines.push(`"","","סך הכל","${Math.round(total)}"`);
+  const head=["תאריך","סוג","תיאור","סכום","מוכר למס"];
+  const lines=rows.map(e=>[e.date,catOf(e.cat).label,(e.note||"").replace(/"/g,'""'),e.amount,e.tax_deductible?"כן":"לא"].map(v=>`"${v}"`).join(","));
+  const dedTotal=rows.filter(e=>e.tax_deductible).reduce((s,e)=>s+e.amount,0);
+  lines.push(""); lines.push(`"","","סך הכל","${Math.round(total)}",""`); lines.push(`"","","מזה מוכר למס","${Math.round(dedTotal)}",""`);
   const csv="\uFEFF"+[head.map(h=>`"${h}"`).join(","),...lines].join("\r\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
   const url=URL.createObjectURL(blob);
@@ -341,7 +350,7 @@ function healOrphanCats(expenses){
 function prepareImport(parsed){
   const cats=(parsed && Array.isArray(parsed.categories)) ? parsed.categories.filter(c=>c.id&&c.label).map(c=>({...c})) : [];
   const arr=Array.isArray(parsed)?parsed:(parsed.expenses||[]);
-  const expenses=(arr||[]).map(e=>({ id:e.id||Date.now()+""+Math.random().toString(36).slice(2,8), amount:parseFloat(e.amount), cat:e.cat||labelToId(e.category||"אחר"), note:(e.note||"").trim()||"ללא תיאור", date:e.date, ...(e.plan?{plan:e.plan}:{}) })).filter(e=>e.amount>0&&e.date);
+  const expenses=(arr||[]).map(e=>({ id:e.id||Date.now()+""+Math.random().toString(36).slice(2,8), amount:parseFloat(e.amount), cat:e.cat||labelToId(e.category||"אחר"), note:(e.note||"").trim()||"ללא תיאור", date:e.date, tax_deductible:!!e.tax_deductible, ...(e.plan?{plan:e.plan}:{}) })).filter(e=>e.amount>0&&e.date);
   return { expenses, categories:cats };
 }
 function stageImport(data){
@@ -423,6 +432,11 @@ function render(){
   const me=monthExp();
   const total=me.reduce((s,e)=>s+e.amount,0);
 
+  // tax-deductible totals (month + year-to-date for the selected year)
+  const yr=state.month.slice(0,4);
+  const dedMonth=me.filter(e=>e.tax_deductible).reduce((s,e)=>s+e.amount,0);
+  const dedYear=state.exp.filter(e=>e.tax_deductible && e.date.slice(0,4)===yr).reduce((s,e)=>s+e.amount,0);
+
   // by category
   const cm={}; me.forEach(e=>cm[e.cat]=(cm[e.cat]||0)+e.amount);
   const byCat=Object.entries(cm).map(([id,v])=>({id,v})).sort((a,b)=>b.v-a.v);
@@ -485,6 +499,10 @@ function render(){
       <div><div class="total-label">סך הוצאות החודש</div><div class="total-num">${fmt(total)}</div></div>
       <div class="total-count">${me.length} תנועות</div>
     </div>
+    ${dedMonth>0||dedYear>0?`<div class="panel tax-panel">
+      <span style="font-size:13px;color:var(--green);font-weight:500">🧾 מוכר למס</span>
+      <span style="font-size:13px;color:var(--ink-soft)">החודש <b style="color:var(--ink)">${fmt(dedMonth)}</b> · ${yr} <b style="color:var(--ink)">${fmt(dedYear)}</b></span>
+    </div>`:""}
     ${byCat.length?`<div class="panel"><div class="panel-title">פילוח לפי סוג</div>${byCat.map(({id,v})=>{const c=catOf(id);return `<div class="bar-row clickable" onclick="openCatDetail('${id}')"><div class="bar-head"><span>${c.icon} ${c.label}</span><span class="v">${fmt(v)} · ${Math.round(v/total*100)}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${(v/maxCat)*100}%;background:${c.color}"></div></div></div>`;}).join("")}</div>`:""}
     <div class="sort-bar"><span class="sort-label">מיון:</span>
       ${[["date","תאריך"],["amount","סכום"],["cat","סוג"]].map(([k,l])=>`<button class="sort-btn ${state.sortBy===k?"active":""}" onclick="state.sortBy='${k}';render()">${l}</button>`).join("")}
@@ -505,7 +523,7 @@ function rowHTML(e){
   const c=catOf(e.cat);
   return `<div class="tx-row" onclick="openForm('${e.id}')">
     <div class="tx-icon" style="background:${c.color}22">${c.icon}</div>
-    <div class="tx-body"><div class="tx-desc">${esc(e.note)}</div><div class="tx-meta">${c.label} · ${e.date.slice(8)}/${e.date.slice(5,7)}</div></div>
+    <div class="tx-body"><div class="tx-desc">${esc(e.note)}${e.tax_deductible?`<span class="tax-badge">מס</span>`:""}</div><div class="tx-meta">${c.label} · ${e.date.slice(8)}/${e.date.slice(5,7)}</div></div>
     <div class="tx-amt">${fmt(e.amount)}</div><span class="edit-hint">✎</span>
   </div>`;
 }
@@ -560,6 +578,10 @@ function formHTML(){
       <div class="cat-grid">${state.cats.map(c=>`<button class="cat-chip" style="${f.cat===c.id?`border-color:${c.color};box-shadow:0 0 0 2px ${c.color};background:#fff`:""}" onclick="state.form.cat='${c.id}';render()"><span class="ic">${c.icon}</span>${c.label}</button>`).join("")}<button class="cat-chip" style="border-style:dashed;color:var(--accent)" onclick="openCatForm()"><span class="ic">＋</span>הוסף</button></div>
       <div class="field-label">תאריך</div>
       <input class="field" type="date" value="${f.date}" onchange="state.form.date=this.value">
+      <div class="tax-row" onclick="state.form.tax_deductible=!state.form.tax_deductible;render()">
+        <div><div style="font-weight:500;font-size:14px">מוכר לצורכי מס</div><div style="font-size:11px;color:var(--ink-soft)">סמן אם ההוצאה מוכרת בניכוי מס</div></div>
+        <div class="switch ${f.tax_deductible?"on":""}"><div class="knob"></div></div>
+      </div>
       ${f.id ? "" : installmentsHTML(f)}
       <div class="sheet-btns">
         ${f.id?`<button class="btn btn-del" onclick="delExp('${f.id}')">מחיקה</button>`:""}
@@ -713,8 +735,8 @@ function doInstall(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredPromp
 /* ===================== ענן + הזדהות (Supabase) ===================== */
 function flagSyncErr(on){ if(state.syncErr!==on){ state.syncErr=on; if(window.sb && state.user) render(); } }
 
-const expToRow = e => ({ id:e.id, amount:+e.amount, cat:e.cat, note:e.note, date:e.date, plan:e.plan ?? null });
-const rowToExp = r => ({ id:r.id, amount:+r.amount, cat:r.cat, note:(r.note&&String(r.note).trim())?r.note:"ללא תיאור", date:r.date, ...(r.plan?{plan:r.plan}:{}) });
+const expToRow = e => ({ id:e.id, amount:+e.amount, cat:e.cat, note:e.note, date:e.date, plan:e.plan ?? null, tax_deductible:!!e.tax_deductible });
+const rowToExp = r => ({ id:r.id, amount:+r.amount, cat:r.cat, note:(r.note&&String(r.note).trim())?r.note:"ללא תיאור", date:r.date, tax_deductible:!!r.tax_deductible, ...(r.plan?{plan:r.plan}:{}) });
 const catToRow = c => ({ id:c.id, label:c.label, icon:c.icon, color:c.color });
 const rowToCat = r => ({ id:r.id, label:r.label, icon:r.icon, color:r.color });
 
