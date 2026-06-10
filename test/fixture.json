@@ -1,0 +1,21 @@
+{
+  "app": "expenses",
+  "version": 2,
+  "exported": "2026-06-09T00:00:00.000Z",
+  "expenses": [
+    { "id": "f1", "amount": 1200, "cat": "housing", "note": "שכר דירה", "date": "2026-06-01" },
+    { "id": "f2", "amount": 60, "cat": "food", "note": "סופר", "date": "2026-06-02" },
+    { "id": "f3", "amount": 250, "cat": "food", "note": "מסעדה", "date": "2026-06-03" },
+    { "id": "f4", "amount": 90, "cat": "transport", "note": "דלק", "date": "2026-06-04" },
+    { "id": "f5", "amount": 40, "cat": "c_orphanx", "note": "קטגוריה חסרה", "date": "2026-06-05" },
+    { "id": "f6", "amount": 33.34, "cat": "leisure", "note": "קולנוע (1/3)", "date": "2026-06-06", "plan": "pTest" },
+    { "id": "f7", "amount": 33.33, "cat": "leisure", "note": "קולנוע (2/3)", "date": "2026-07-06", "plan": "pTest" },
+    { "id": "f8", "amount": 33.33, "cat": "leisure", "note": "קולנוע (3/3)", "date": "2026-08-06", "plan": "pTest" }
+  ],
+  "categories": [
+    { "id": "housing", "label": "דיור", "icon": "🏠", "color": "#c4623a" },
+    { "id": "food", "label": "מזון", "icon": "🍽️", "color": "#d98c3f" },
+    { "id": "transport", "label": "תחבורה", "icon": "🚗", "color": "#8a9b6e" },
+    { "id": "leisure", "label": "פנאי", "icon": "🎲", "color": "#7a6aab" }
+  ]
+}

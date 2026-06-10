@@ -103,6 +103,13 @@ input:focus,select:focus{outline:none;border-color:var(--accent)}
 <div id="app"></div>
 
 <script>
+/* ===== Supabase (ענן) — מולא אחרי הקמת הפרויקט. ריק = מצב localStorage מקומי (וגם סביבת הבדיקות) ===== */
+const SUPABASE_URL  = "https://jbohvpvpwgfpwedoaead.supabase.co";
+const SUPABASE_ANON = "sb_publishable_JPM57xi_TfQ36MbG_uo86w_RZTnaLr8";   // publishable (anon) key — בטוח לחשיפה; מוגן ע"י RLS
+const cloudReady = () => typeof SUPABASE_URL==="string" && SUPABASE_URL.startsWith("http")
+  && typeof document!=="undefined" && !!document.body;   // false בסביבת ה-vm של הבדיקה
+const uid = () => (state.user && state.user.id) || null;
+
 const DEFAULT_CATEGORIES = [
   { id:"housing", label:"דיור", icon:"🏠", color:"#c4623a" },
   { id:"food", label:"מזון", icon:"🍽️", color:"#d98c3f" },
@@ -156,12 +163,14 @@ let state = {
   mergeFrom: null,
   catDetail: null,
   openGroups: new Set(),
+  user: null, authView: "login", authEmail: "", authPass: "", authBusy: false, authMsg: "", authMsgErr: false, syncErr: false,
 };
 
 let deferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); deferredPrompt=e; render(); });
 
-function persist(next){ state.exp=next; save(next); render(); }
+function persist(next){ state.exp=next; save(next); render();
+  if(window.sb && uid()) syncExpenses(next).then(()=>flagSyncErr(false)).catch(e=>{console.error(e);flagSyncErr(true);}); }
 
 function emptyForm(){ return { id:null, amount:"", cat:"food", note:"", date:todayStr(), installments:1 }; }
 
@@ -231,7 +240,8 @@ function exportJSON(){
   URL.revokeObjectURL(url);
 }
 
-function persistCats(next){ state.cats=next; saveCats(next); render(); }
+function persistCats(next){ state.cats=next; saveCats(next); render();
+  if(window.sb && uid()) syncCategories(next).then(()=>flagSyncErr(false)).catch(e=>{console.error(e);flagSyncErr(true);}); }
 function openCatForm(id){
   if(id){ const c=state.cats.find(x=>x.id===id); if(c){ state.catForm={ editId:id, label:c.label, icon:c.icon, color:c.color }; render(); return; } }
   state.catForm={ editId:null, label:"", icon:ICONS[0], color:PALETTE[0] };
@@ -338,23 +348,35 @@ function stageImport(data){
   if(!data.expenses.length){ alert("לא נמצאו רשומות תקינות."); return; }
   state.pendingImport=data; state.backup=null; render();
 }
-function applyImport(mode){
+async function applyImport(mode){
   const data=state.pendingImport; if(!data) return;
+  // מפתח דה-דופ קנוני: amount מנורמל ל-2 ספרות (numeric חוזר מ-Postgres כמחרוזת) + plan לסדרות תשלומים
+  const dedupKey = e => `${e.date}|${(+e.amount).toFixed(2)}|${e.note}|${e.plan||""}`;
   if(mode==="replace"){
     let cats=DEFAULT_CATEGORIES.map(c=>({...c}));
     data.categories.forEach(c=>{ const i=cats.findIndex(x=>x.id===c.id); if(i>=0)cats[i]={...cats[i],...c}; else cats.push({...c}); });
     if(!cats.some(c=>c.id==="other")) cats.push({id:"other",label:"אחר",icon:"🧾",color:"#9a9a9a"});
-    persistCats(cats);
-    healOrphanCats(data.expenses);
-    persist(data.expenses);
+    // ריפוי יתומים inline כדי שהענן והמקומי יהיו זהים
+    const known=new Set(cats.map(c=>c.id));
+    [...new Set((data.expenses||[]).map(e=>e.cat).filter(id=>id&&!known.has(id)))].forEach(id=>{
+      const oi=cats.findIndex(x=>x.id==="other"); const nc={ id, label:"קטגוריה משוחזרת", icon:"🏷️", color:"#9a9a9a" };
+      if(oi>=0) cats.splice(oi,0,nc); else cats.push(nc);
+    });
+    if(window.sb && uid()){
+      // בטוח מפני אובדן נתונים: כתיבה (upsert) → המתנה → מחיקת מה שלא בסט. כשל = שגיאה חוסמת, ללא שינוי מקומי.
+      try{ await cloudReplace(cats, data.expenses); }
+      catch(err){ alert("שמירת הנתונים בענן נכשלה — לא בוצע שינוי, הנתונים הקיימים נשמרו. נסה שוב.\n"+((err&&err.message)||err)); return; }
+    }
+    state.cats=cats; saveCats(cats);
+    state.exp=data.expenses; save(data.expenses);
     state.pendingImport=null; render();
     alert(`הוחלפו כל הנתונים: ${data.expenses.length} רשומות.`);
   } else {
     restoreCategories(data.categories);
     healOrphanCats(data.expenses);
     const ids=new Set(state.exp.map(e=>e.id));
-    const seen=new Set(state.exp.map(e=>`${e.date}|${e.amount}|${e.note}`));
-    const fresh=data.expenses.filter(e=>!ids.has(e.id) && !seen.has(`${e.date}|${e.amount}|${e.note}`));
+    const seen=new Set(state.exp.map(dedupKey));
+    const fresh=data.expenses.filter(e=>!ids.has(e.id) && !seen.has(dedupKey(e)));
     persist([...fresh,...state.exp]);
     state.pendingImport=null; render();
     const skipped=data.expenses.length-fresh.length;
@@ -436,7 +458,7 @@ function render(){
 
   app.innerHTML = `
     <div class="header">
-      <div><div class="brand">הוצאות<span>.</span></div><div class="sub">נשמר על המכשיר · אופליין</div></div>
+      <div><div class="brand">הוצאות<span>.</span></div><div class="sub">${window.sb?(state.syncErr?"⚠️ לא נשמר בענן":"☁️ מסונכרן בענן"):"נשמר על המכשיר · אופליין"}</div></div>
       <div class="hbtns" style="position:relative">
         <button class="export-btn" onclick="state.menu=!state.menu;render()">⋯ קובץ</button>
         ${state.menu?`<div class="menu-backdrop" onclick="state.menu=false;render()"></div>
@@ -449,6 +471,9 @@ function render(){
             <div class="menu-div"></div>
             <button class="menu-item" onclick="state.menu=false;render();openRestore()">📋 שחזור מטקסט (הדבקה)</button>
             <button class="menu-item" onclick="state.menu=false;render();pickFile()">📁 ייבוא מקובץ (JSON / CSV)</button>
+            ${window.sb&&state.user?`<div class="menu-div"></div>
+            <div style="padding:8px 12px 4px;font-size:12px;color:var(--ink-soft);direction:ltr;text-align:right">${esc(state.user.email||"")}</div>
+            <button class="menu-item" onclick="doLogout()">🚪 התנתקות</button>`:""}
           </div>`:""}
         <select class="month-sel" onchange="state.month=this.value;render()">
           ${monthsList().map(m=>`<option value="${m}" ${m===state.month?"selected":""}>${monthLabel(m)}</option>`).join("")}
@@ -685,6 +710,151 @@ function openForm(id){
 }
 function doInstall(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; render(); } }
 
+/* ===================== ענן + הזדהות (Supabase) ===================== */
+function flagSyncErr(on){ if(state.syncErr!==on){ state.syncErr=on; if(window.sb && state.user) render(); } }
+
+const expToRow = e => ({ id:e.id, amount:+e.amount, cat:e.cat, note:e.note, date:e.date, plan:e.plan ?? null });
+const rowToExp = r => ({ id:r.id, amount:+r.amount, cat:r.cat, note:(r.note&&String(r.note).trim())?r.note:"ללא תיאור", date:r.date, ...(r.plan?{plan:r.plan}:{}) });
+const catToRow = c => ({ id:c.id, label:c.label, icon:c.icon, color:c.color });
+const rowToCat = r => ({ id:r.id, label:r.label, icon:r.icon, color:r.color });
+
+// כתיבת מערך מלא: upsert לכל השורות ואז מחיקת מה שלא בסט. אין diff — כל קריאה נושאת את הסט הסמכותי השלם.
+async function syncTable(table, rows, mapper){
+  const u=uid(); if(!window.sb || !u) return;
+  const payload = rows.map(r=>({ ...mapper(r), user_id:u }));
+  if(payload.length){
+    const up = await window.sb.from(table).upsert(payload, { onConflict:"user_id,id" });
+    if(up.error) throw up.error;
+  }
+  let q = window.sb.from(table).delete().eq("user_id", u);   // .eq חיזוק הגנה; RLS הוא הגבול האמיתי
+  const ids = rows.map(r=>String(r.id));
+  if(ids.length) q = q.not("id","in","("+ids.map(id=>`"${id.replace(/"/g,"")}"`).join(",")+")");
+  const del = await q;
+  if(del.error) throw del.error;
+}
+function syncExpenses(next){ return syncTable("expenses", next, expToRow); }
+function syncCategories(next){ return syncTable("categories", next, catToRow); }
+async function cloudReplace(cats, expenses){ await syncCategories(cats); await syncExpenses(expenses); }
+
+async function boot(){
+  window.sb.auth.onAuthStateChange((event, session)=>{
+    if(event==="PASSWORD_RECOVERY"){ state.user=(session&&session.user)||state.user; state.authView="reset_new"; state.authMsg="בחר סיסמה חדשה."; state.authMsgErr=false; renderAuth(); return; }
+    if(event==="SIGNED_OUT"){ state.user=null; state.exp=[]; state.cats=loadCats(); renderAuth(); return; }
+    if((event==="SIGNED_IN"||event==="INITIAL_SESSION") && session && session.user){
+      if(!state.user || state.user.id!==session.user.id){ state.user=session.user; hydrate(); }
+    }
+  });
+  try{
+    const { data:{ session } } = await window.sb.auth.getSession();
+    if(session && session.user){ state.user=session.user; await hydrate(); }
+    else renderAuth();
+  }catch(e){ console.error(e); renderAuth(); }
+}
+
+function renderLoading(){ const app=document.getElementById("app"); if(app) app.innerHTML=`<div class="empty" style="padding-top:90px;font-size:15px">טוען…</div>`; }
+
+async function hydrate(){
+  const u=uid(); if(!u){ renderAuth(); return; }
+  renderLoading();
+  try{
+    const [er,cr] = await Promise.all([
+      window.sb.from("expenses").select("*").eq("user_id",u),
+      window.sb.from("categories").select("*").eq("user_id",u),
+    ]);
+    if(er.error) throw er.error; if(cr.error) throw cr.error;
+    state.exp = (er.data||[]).map(rowToExp);
+    let cats = (cr.data||[]).map(rowToCat);
+    if(!cats.length){ cats = DEFAULT_CATEGORIES.map(c=>({...c})); await syncCategories(cats); }   // חשבון חדש → זריעת ברירות מחדל
+    state.cats = cats;
+    save(state.exp); saveCats(cats);
+    state.month = monthKey(new Date()); state.syncErr=false; state.openGroups=new Set();
+    render();
+  }catch(e){ console.error(e); alert("טעינת הנתונים נכשלה. בדוק חיבור ונסה שוב.\n"+((e&&e.message)||e)); state.user=null; renderAuth(); }
+}
+
+function translateAuthErr(error){
+  const m=((error&&error.message)||"").toLowerCase();
+  if(m.includes("invalid login")) return "אימייל או סיסמה שגויים.";
+  if(m.includes("email not confirmed")) return "האימייל עדיין לא אושר — בדוק את תיבת הדואר.";
+  if(m.includes("already registered")) return "כתובת זו כבר רשומה. נסה להתחבר.";
+  if(m.includes("at least")) return "הסיסמה קצרה מדי (לפחות 6 תווים).";
+  if(m.includes("signups not allowed")||m.includes("signup is disabled")) return "ההרשמה סגורה כרגע.";
+  if(m.includes("rate limit")||m.includes("too many")) return "יותר מדי ניסיונות. נסה שוב בעוד כמה דקות.";
+  if(m.includes("invalid email")||m.includes("unable to validate email")) return "כתובת אימייל לא תקינה.";
+  return (error&&error.message) || "שגיאה לא צפויה.";
+}
+
+function setAuthView(v){ state.authView=v; state.authMsg=""; state.authMsgErr=false; renderAuth(); }
+
+async function doLogin(){
+  if(state.authBusy) return; state.authBusy=true; state.authMsg=""; renderAuth();
+  const { error } = await window.sb.auth.signInWithPassword({ email:(state.authEmail||"").trim(), password:state.authPass||"" });
+  state.authBusy=false;
+  if(error){ state.authMsg=translateAuthErr(error); state.authMsgErr=true; renderAuth(); }
+}
+async function doRegister(){
+  if(state.authBusy) return; state.authBusy=true; state.authMsg=""; renderAuth();
+  const redirectTo = location.origin + location.pathname;
+  const { data, error } = await window.sb.auth.signUp({ email:(state.authEmail||"").trim(), password:state.authPass||"", options:{ emailRedirectTo:redirectTo } });
+  state.authBusy=false;
+  if(error){ state.authMsg=translateAuthErr(error); state.authMsgErr=true; }
+  else if(!(data && data.session)){ state.authView="login"; state.authMsg="נשלח אליך מייל לאישור הכתובת. אשר אותו, ואז התחבר."; state.authMsgErr=false; }
+  renderAuth();
+}
+async function doReset(){
+  if(state.authBusy) return; state.authBusy=true; state.authMsg=""; renderAuth();
+  const redirectTo = location.origin + location.pathname;
+  const { error } = await window.sb.auth.resetPasswordForEmail((state.authEmail||"").trim(), { redirectTo });
+  state.authBusy=false;
+  state.authMsg = error ? translateAuthErr(error) : "אם הכתובת קיימת — נשלח אליה קישור לאיפוס סיסמה.";
+  state.authMsgErr = !!error; renderAuth();
+}
+async function doSetNewPassword(){
+  if(state.authBusy || !(state.authPass||"").trim()) return;
+  state.authBusy=true; state.authMsg=""; renderAuth();
+  const { error } = await window.sb.auth.updateUser({ password: state.authPass });
+  state.authBusy=false;
+  if(error){ state.authMsg=translateAuthErr(error); state.authMsgErr=true; renderAuth(); }
+  else { state.authPass=""; state.authView="login"; state.authMsg="הסיסמה עודכנה. אפשר להתחבר."; state.authMsgErr=false; renderAuth(); }
+}
+async function doLogout(){
+  state.menu=false;
+  try{ if(window.sb) await window.sb.auth.signOut(); }catch(e){ console.error(e); }
+  state.user=null; state.exp=[]; state.cats=loadCats(); state.pendingImport=null; state.form=null; state.catForm=null; state.manageCats=false; state.backup=null; state.catDetail=null;
+  state.authEmail=""; state.authPass=""; state.authView="login"; state.authMsg=""; renderAuth();
+}
+
+function renderAuth(){
+  const app=document.getElementById("app"); if(!app) return;
+  const v=state.authView||"login", busy=state.authBusy;
+  const msg = state.authMsg ? `<div style="font-size:13px;margin:2px 4px 12px;line-height:1.5;color:${state.authMsgErr?'#bb4a3a':'var(--green)'}">${esc(state.authMsg)}</div>` : "";
+  const email = `<div class="field-label">אימייל</div><input class="field" type="email" inputmode="email" dir="ltr" autocomplete="email" placeholder="name@example.com" value="${esc(state.authEmail)}" oninput="state.authEmail=this.value">`;
+  const pass = (ac,ph) => `<div class="field-label">סיסמה</div><input class="field" type="password" dir="ltr" autocomplete="${ac}" placeholder="${ph}" value="${esc(state.authPass)}" oninput="state.authPass=this.value">`;
+  let body;
+  if(v==="register"){
+    body = `<div class="sheet-title">פתיחת חשבון חדש</div>${msg}${email}${pass("new-password","לפחות 6 תווים")}
+      <button class="btn btn-save" style="width:100%;margin-top:4px" ${busy?"disabled":""} onclick="doRegister()">${busy?"רגע…":"צור חשבון"}</button>
+      <div style="text-align:center;margin-top:14px;font-size:14px;color:var(--ink-soft)">כבר יש לך חשבון? <button style="color:var(--accent);font-weight:700" onclick="setAuthView('login')">התחברות</button></div>`;
+  } else if(v==="reset"){
+    body = `<div class="sheet-title">איפוס סיסמה</div>${msg}${email}
+      <button class="btn btn-save" style="width:100%;margin-top:4px" ${busy?"disabled":""} onclick="doReset()">${busy?"שולח…":"שלח קישור איפוס"}</button>
+      <div style="text-align:center;margin-top:14px;font-size:14px"><button style="color:var(--accent);font-weight:700" onclick="setAuthView('login')">חזרה להתחברות</button></div>`;
+  } else if(v==="reset_new"){
+    body = `<div class="sheet-title">בחירת סיסמה חדשה</div>${msg}${pass("new-password","סיסמה חדשה — לפחות 6 תווים")}
+      <button class="btn btn-save" style="width:100%;margin-top:4px" ${busy?"disabled":""} onclick="doSetNewPassword()">${busy?"מעדכן…":"עדכן סיסמה"}</button>`;
+  } else {
+    body = `<div class="sheet-title">התחברות</div>${msg}${email}${pass("current-password","הסיסמה שלך")}
+      <button class="btn btn-save" style="width:100%;margin-top:4px" ${busy?"disabled":""} onclick="doLogin()">${busy?"מתחבר…":"התחברות"}</button>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:14px">
+        <button style="color:var(--accent);font-weight:700" onclick="setAuthView('register')">פתיחת חשבון חדש</button>
+        <button style="color:var(--ink-soft)" onclick="setAuthView('reset')">שכחת סיסמה?</button>
+      </div>`;
+  }
+  app.innerHTML = `
+    <div class="header"><div><div class="brand">הוצאות<span>.</span></div><div class="sub">מעקב הוצאות אישי · בענן</div></div></div>
+    <div class="panel" style="margin-top:8px">${body}</div>`;
+}
+
 // expose for inline handlers
 window.state=state; window.render=render; window.openForm=openForm; window.saveForm=saveForm;
 window.delExp=delExp; window.exportCSV=exportCSV; window.updateSaveBtn=updateSaveBtn; window.doInstall=doInstall;
@@ -695,6 +865,7 @@ window.openMergeCat=openMergeCat; window.mergeCategory=mergeCategory; window.mer
 window.applyImport=applyImport; window.importChooseHTML=importChooseHTML;
 window.toggleGroup=toggleGroup; window.openCatDetail=openCatDetail; window.catDetailHTML=catDetailHTML; window.groupKeyFor=groupKeyFor; window.groupLabel=groupLabel;
 window.changeInst=changeInst; window.installmentsHTML=installmentsHTML; window.addMonths=addMonths;
+window.renderAuth=renderAuth; window.setAuthView=setAuthView; window.doLogin=doLogin; window.doRegister=doRegister; window.doReset=doReset; window.doSetNewPassword=doSetNewPassword; window.doLogout=doLogout; window.boot=boot; window.hydrate=hydrate;
 
 // register a minimal service worker for offline (inline via blob)
 if("serviceWorker" in navigator){
@@ -703,7 +874,17 @@ if("serviceWorker" in navigator){
   navigator.serviceWorker.register(swUrl).catch(()=>{});
 }
 
-render();
+// אתחול: אם Supabase מוגדר ובדפדפן — לטעון את ה-client דינמית ואז boot(); אחרת מצב localStorage מקומי (וגם ה-vm של הבדיקה).
+if(window.sb){
+  boot();
+} else if(cloudReady()){
+  import("https://esm.sh/@supabase/supabase-js@2").then(m=>{
+    window.sb = m.createClient(SUPABASE_URL, SUPABASE_ANON, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
+    boot();
+  }).catch(err=>{ console.error("Supabase load failed", err); render(); });
+} else {
+  render();
+}
 </script>
 </body>
 </html>
